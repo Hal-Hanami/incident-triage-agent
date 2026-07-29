@@ -1,0 +1,25 @@
+# secrets — never commit keys (Anthropic / Voyage)
+.env
+.env.*
+*.key
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+uv.lock
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# local data / generated artifacts (the runbook index is rebuilt, not committed;
+# demo/examples.json IS committed — it is the key-free baked demo, design §11)
+data/
+*.db
+
+# editor / OS
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,31 @@
+[project]
+name = "incident-triage-agent"
+version = "0.1.0"
+description = "Read-only first-pass incident triage agent on the Claude Agent SDK + MCP. Classifies an alert/ticket (severity + type), retrieves the matching runbook via the tech-docs-rag retrieval package, proposes a cited first response — or abstains and escalates to a human when confidence is low. Measured (classification/action accuracy, abstention rate), guardrailed (read-only, no destructive ops), cost-capped per incident, and observable (per-stage latency + per-model $)."
+requires-python = ">=3.11"
+
+# The offline core (schema, observe, fixtures, the eval-harness math, every test) is
+# stdlib-only and needs no key/network. LLM stages call `anthropic` through a *lazy*
+# import behind a Protocol, so `pip install -e .` and the offline suite work without it
+# installed — it ships as the optional `live` extra, pulled in only to run the model.
+#
+# Every runtime dependency belongs to a stage that only the live paths reach:
+#   classify / draft : `anthropic` (claude-haiku-4-5 classifier, claude-opus-4-8 drafter)
+#   retrieve         : tech-docs-rag's `rag` package (hybrid retrieval + Voyage rerank),
+#                      reused over the synthetic runbook corpus — NOT reimplemented here
+#   agent + MCP      : `claude-agent-sdk` (in-process MCP tools + read-only guardrail)
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest"]
+live = ["anthropic"]  # classify (claude-haiku-4-5); the drafter reuses it. Lazy-imported.
+agent = ["claude-agent-sdk"]  # Agent SDK shell (in-process MCP tools + read-only
+                              # guardrail, design §2/§9). Lazy-imported; the live agent
+                              # path also needs the Claude Code CLI on PATH.
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["triage"]

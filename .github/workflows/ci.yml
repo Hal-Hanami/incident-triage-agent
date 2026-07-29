@@ -1,0 +1,22 @@
+name: tests
+
+# The offline suite (fakes; no key, no network) — the same 137 tests the README
+# claims. CI exists so that claim is third-party verifiable, not self-reported.
+#
+# `pip install -e '.[dev]'` rather than `uv sync`: uv.lock is not committed, and
+# the offline core is stdlib-only, so there is nothing to pin.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -e '.[dev]'
+      - run: python -m pytest -q
