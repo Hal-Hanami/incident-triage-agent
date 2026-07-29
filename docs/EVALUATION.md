@@ -4,8 +4,9 @@ Every number this repository claims, with the date it was measured, the set it
 was measured over, and the command that reproduces it. Where a number is weak,
 noisy, or an artifact of the corpus, it says so here rather than in a footnote.
 
-The offline suite (**137 tests**, no key, no network) is the other half of this:
-it pins the decision table, the guardrail policy, the pricing math, and the demo
+The offline suite (**173 tests**, no key, no network) is the other half of this:
+it pins the decision table, the guardrail policy *and the callbacks that apply
+it*, the pricing math, the retrieval adapter's import contract, and the demo
 round trip, so the numbers below are the only part that needs a paid run.
 
 ## The incident set
@@ -186,9 +187,10 @@ tools at all (`tools=[]`), so `Bash` / `Write` / `Edit` do not exist to be calle
 — the model was never in a position to attempt one. Layers two and three (the
 `allowed_tools` allowlist, the deny-by-default `can_use_tool` callback and the
 `PreToolUse` hook) were therefore never exercised *live*; they are pinned by the
-offline suite instead, against every mutating built-in, near-miss name, and
-foreign MCP tool name. A clean live run is evidence the structure works, not
-evidence that the fallbacks do.
+offline suite instead — not only the allow/deny predicate, but the callback
+bodies themselves, driven against every mutating built-in, near-miss name, and
+foreign MCP tool name, with a stubbed SDK. A clean live run is evidence the
+structure works, not evidence that the fallbacks do.
 
 Agent-vs-pipeline parity on INC-0001: identical severity, type, confidences,
 retrieval, outcome, and action. The drafter's prose cited different `[n]` markers

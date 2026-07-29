@@ -1,6 +1,6 @@
 name: tests
 
-# The offline suite (fakes; no key, no network) — the same 137 tests the README
+# The offline suite (fakes; no key, no network) — the same 173 tests the README
 # claims. CI exists so that claim is third-party verifiable, not self-reported.
 #
 # `pip install -e '.[dev]'` rather than `uv sync`: uv.lock is not committed, and

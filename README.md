@@ -73,9 +73,10 @@ python -m triage demo
 # check fixture integrity
 python -m triage validate
 
-# the offline test suite — 137 tests: pricing math (incl. cache tokens), schema
+# the offline test suite — 173 tests: pricing math (incl. cache tokens), schema
 # invariants, fixtures, the full PROPOSE/ABSTAIN decision table, the budget/skip
-# wiring, the read-only guardrail red-team, and the pipeline eval loop with fakes
+# wiring, the guardrail policy *and the callbacks that enforce it*, the retrieval
+# adapter's import contract, and the pipeline eval loop with fakes
 uv run --with pytest python -m pytest -q       # or: pip install -e '.[dev]' && pytest -q
 ```
 
