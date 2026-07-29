@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from triage import eval as eval_mod
 from triage import observe, retrieve, runbooks, schema
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -108,3 +109,63 @@ def test_retrieve_runbooks_times_and_costs_when_traced():
     # Voyage tokens are filed under the embedding model for the per-model ledger (§7)
     assert trace.usage_by_model["voyage-4-lite"] == {"total_tokens": 4}
 
+
+def test_evaluate_with_perfect_retriever_scores_recall_100():
+    incidents = schema.load_incidents(FIXTURE)
+    rows = eval_mod.evaluate(incidents, retriever=GoldRetriever(incidents), scope="in")
+    s = eval_mod.summarize(rows)
+    assert s["n_recallable"] == sum(1 for i in incidents if i.in_scope and i.expected_runbook)
+    assert s["recall_at_1"] == 1.0 and s["recall_at_3"] == 1.0 and s["recall_at_k"] == 1.0
+    assert s["retrieval_mrr"] == 1.0
+    # retrieval-only run: classification metrics stay n/a (no classifier ran)
+    assert s["severity_accuracy"] is None and s["type_accuracy"] is None
+    # Voyage tokens are tallied per model and priced (voyage-4-lite is in PRICING)
+    assert s["usage_by_model"]["voyage-4-lite"]["total_tokens"] == 4 * s["n_recallable"]
+    assert s["cost"]["total"] > 0.0
+
+
+def test_evaluate_retriever_miss_lowers_recall():
+    incidents = schema.load_incidents(FIXTURE)
+    in_scope = [i for i in incidents if i.in_scope]
+    miss = [i.id for i in in_scope][:2]
+    rows = eval_mod.evaluate(incidents, retriever=GoldRetriever(incidents, miss_ids=miss),
+                             scope="in")
+    s = eval_mod.summarize(rows)
+    n = s["n_recallable"]
+    assert s["recall_at_k"] == (n - 2) / n
+
+
+def test_evaluate_distractor_separates_recall_at_1_from_recall_at_3():
+    incidents = schema.load_incidents(FIXTURE)
+    # a wrong runbook ranked first pushes the expected one to rank 2 everywhere
+    rows = eval_mod.evaluate(incidents, retriever=GoldRetriever(incidents, distractor="RB-thirdparty"),
+                             scope="in")
+    s = eval_mod.summarize(rows)
+    assert s["recall_at_1"] < s["recall_at_3"] == 1.0  # rank-2 hits: missed@1, caught@3
+
+
+class GoldClassifier:
+    """Test oracle: echoes each incident's gold labels (the real classifier sees only
+    the prompt view). Kept inline so this file needs no cross-test import."""
+
+    model = "fake-classifier"
+
+    def __init__(self, incidents):
+        self.by_id = {i.id: i for i in incidents}
+
+    def classify(self, view):
+        from triage.classify import Classification
+        inc = self.by_id[view["id"]]
+        return Classification(inc.gold_severity, inc.gold_type, 0.9, 0.85,
+                              usage={"input_tokens": 7, "output_tokens": 3})
+
+
+def test_evaluate_runs_classify_and_retrieve_together():
+    incidents = schema.load_incidents(FIXTURE)
+    rows = eval_mod.evaluate(incidents, GoldClassifier(incidents),
+                             GoldRetriever(incidents), scope="in")
+    s = eval_mod.summarize(rows)
+    # both stages populate their metrics in one pass, per model
+    assert s["severity_accuracy"] == 1.0 and s["type_accuracy"] == 1.0
+    assert s["recall_at_k"] == 1.0
+    assert set(s["usage_by_model"]) == {"fake-classifier", "voyage-4-lite"}
