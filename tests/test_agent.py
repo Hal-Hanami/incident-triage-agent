@@ -374,3 +374,104 @@ def test_agent_triage_report_flags_non_allowlisted_calls():
         tool_calls=["mcp__triage__classify_incident", "Bash",
                     "mcp__triage__escalate"])
     assert run.non_triage_tool_calls == ["Bash"]  # the live red-team assertion
+
+
+# --- the guard callbacks themselves, not just the predicate they consult --------
+# `guardrail_spec()` and `is_tool_allowed()` above pin *what the policy says*.
+# These pin *that the live callbacks obey it*: a deny-by-default callback whose
+# condition is inverted still satisfies every test above, because none of them
+# execute the callback bodies. The SDK is stubbed because the assertion is about
+# our branch, not about the SDK's types.
+
+class _StubAllow:
+    pass
+
+
+class _StubDeny:
+    def __init__(self, message: str = "", interrupt: bool = False):
+        self.message, self.interrupt = message, interrupt
+
+
+class _StubSDK:
+    """Just enough claude-agent-sdk surface for `build_options` to construct."""
+
+    PermissionResultAllow = _StubAllow
+    PermissionResultDeny = _StubDeny
+
+    class HookMatcher:
+        def __init__(self, hooks):
+            self.hooks = hooks
+
+    class ClaudeAgentOptions:
+        def __init__(self, **kw):
+            self.__dict__.update(kw)
+
+
+@pytest.fixture
+def options(monkeypatch):
+    monkeypatch.setattr(agent_mod, "_load_sdk", lambda: _StubSDK)
+    denied: list[str] = []
+    opts = agent_mod.build_options(object(), denied=denied)
+    return opts, denied
+
+
+def _call(coro):
+    import asyncio
+    return asyncio.run(coro)
+
+
+@pytest.mark.parametrize("name", ALLOWED_TOOLS)
+def test_can_use_tool_allows_every_allowlisted_tool(options, name):
+    opts, denied = options
+    assert isinstance(_call(opts.can_use_tool(name, {}, None)), _StubAllow)
+    assert denied == []
+
+
+@pytest.mark.parametrize("name", [*MUTATING_TOOLS, "Read", "mcp__prod__classify_incident", ""])
+def test_can_use_tool_denies_and_journals_everything_else(options, name):
+    opts, denied = options
+    result = _call(opts.can_use_tool(name, {"command": "rm -rf /"}, None))
+    assert isinstance(result, _StubDeny)
+    assert name in result.message or name == ""
+    assert denied == [name]          # the red-team metric counts this call
+
+
+@pytest.mark.parametrize("name", ALLOWED_TOOLS)
+def test_pre_tool_hook_passes_allowlisted_tools_through(options, name):
+    opts, denied = options
+    hook = opts.hooks["PreToolUse"][0].hooks[0]
+    assert _call(hook({"tool_name": name}, None, None)) == {}
+    assert denied == []
+
+
+@pytest.mark.parametrize("name", [*MUTATING_TOOLS, "Write", "mcp__triage__drop_table"])
+def test_pre_tool_hook_denies_everything_else(options, name):
+    opts, denied = options
+    hook = opts.hooks["PreToolUse"][0].hooks[0]
+    out = _call(hook({"tool_name": name}, None, None))["hookSpecificOutput"]
+    assert out["hookEventName"] == "PreToolUse"
+    assert out["permissionDecision"] == "deny"
+    assert name in out["permissionDecisionReason"]
+    assert denied == [name]
+
+
+def test_guard_callbacks_ignore_tool_input_entirely(options):
+    """A guard that reads command strings can be argued around; this one may not
+    look at input at all, so an innocuous-looking payload is denied identically."""
+    opts, denied = options
+    innocuous = _call(opts.can_use_tool("Bash", {"command": "echo hello"}, None))
+    assert isinstance(innocuous, _StubDeny)
+    hook = opts.hooks["PreToolUse"][0].hooks[0]
+    out = _call(hook({"tool_name": "Bash", "tool_input": {"command": "echo hi"}}, None, None))
+    assert out["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+def test_live_options_carry_the_pinned_policy_verbatim(options):
+    """What the offline suite pins is what the live run is configured with."""
+    opts, _ = options
+    spec = guardrail_spec()
+    assert opts.tools == spec["tools"] == []
+    assert opts.allowed_tools == spec["allowed_tools"]
+    assert opts.disallowed_tools == spec["disallowed_tools"]
+    assert opts.permission_mode == spec["permission_mode"]
+    assert opts.setting_sources == spec["setting_sources"]
