@@ -47,8 +47,14 @@ incident). Latency **p50 1.14s / p95 1.79s**.
 uv run --with anthropic python -m triage eval --classify-only
 ```
 
+**Re-measured 2026-07-30** as part of a full-set run: type accuracy 90.9%
+again, severity accuracy **68.2%** — nine points below this run and thirteen
+below the best of four. Type is reproducible; severity is not. See the spread
+table under "the decision contract".
+
 **Read it honestly.** Type is the strong head; severity is the noisy one. All
-five in-scope severity misses are single-SEV boundary calls, not wild errors:
+five in-scope severity misses in this run are single-SEV boundary calls, not wild
+errors:
 INC-0003 SEV1→SEV2 (primary DB down with a replica up), INC-0006 SEV4→SEV2
 (third-party degraded), INC-0004 and INC-0022 off by one, INC-0031 SEV3→SEV2.
 Both type misses (INC-0010, INC-0031) are the `hard` / `ambiguous` calibration
@@ -100,36 +106,54 @@ incidents that the decider then gates on the retrieval score.
 
 ## The decision contract — abstention, escalation, action
 
-Three full-set runs of the complete pipeline (classify → retrieve → draft →
+Four full-set runs of the complete pipeline (classify → retrieve → draft →
 decide), all 32 incidents.
 
-| | 2026-07-02 | 2026-07-04 | 2026-07-04 (+ judge) |
-|---|---|---|---|
-| abstention rate (15 must-abstain) | **100%** | **100%** | **100%** |
-| **missed escalations** | **0** | **0** | **0** |
-| false abstentions (17 answerable) | 1 — INC-0014 | 2 — INC-0014, INC-0032 | 2 — INC-0014, INC-0032 |
-| action correctness (key-match) | 93.8% (15/16) | — | **93.3%** (14/15) |
-| severity / type (in-scope) | 81.8% / 90.9% | — | 77.3% / 90.9% |
-| cost per incident | $0.0142 | $0.0135 | **$0.0140** |
-| end-to-end latency | p50 6.81s / p95 13.86s | p50 5.41s / p95 8.18s | p50 5.22s / p95 10.80s |
+| | 2026-07-02 | 2026-07-04 | 2026-07-04 (+ judge) | 2026-07-30 (+ judge) |
+|---|---|---|---|---|
+| abstention rate (15 must-abstain) | **100%** | **100%** | **100%** | **100%** |
+| **missed escalations** | **0** | **0** | **0** | **0** |
+| false abstentions (17 answerable) | 1 — INC-0014 | 2 — INC-0014, INC-0032 | 2 — INC-0014, INC-0032 | 1 — INC-0014 |
+| action correctness (key-match) | 93.8% (15/16) | — | 93.3% (14/15) | 93.8% (15/16) |
+| severity / type (in-scope) | 81.8% / 90.9% | — | 77.3% / 90.9% | 68.2% / 90.9% |
+| cost per incident | $0.0142 | $0.0135 | $0.0140 | $0.0138 |
+| end-to-end latency | p50 6.81s / p95 13.86s | p50 5.41s / p95 8.18s | p50 5.22s / p95 10.80s | p50 6.51s / p95 15.18s |
 
 ```sh
 uv run --with anthropic --with sqlite-vec python -m triage eval           # add --judge for the note
 ```
 
-**The safety headline held in all three runs: abstention 100% with zero missed
+**The safety headline held in all four runs: abstention 100% with zero missed
 escalations.** A missed escalation — proposing an action on an incident that
 should have gone to a human — is the error this system exists to prevent, and it
-has not occurred in any measured full-set run.
+has not occurred in any measured full-set run. That is the one claim here with
+four independent observations behind it.
 
-**False abstentions are not zero, and they move between runs.** One in the first
-run, two in both later runs. INC-0014 is a low-stakes answerable SEV4 the drafter
-declined; INC-0032 was proposed in the first run and abstained in the next two.
-Both are errors in the *conservative* direction — the system escalating something
-it could have handled — which is the direction to be wrong in, but it is still a
-2-in-17 (11.8%) rate on answerable incidents, and it is **run-to-run variance in
-the drafter, not a deterministic property**. Exact decision parity is pinned only
-in the offline suite, where stage outputs are held fixed.
+**Almost everything else moves between runs, and the spread is worth more than
+any single figure.** Over the four runs:
+
+| | range across runs |
+|---|---|
+| abstention rate, missed escalations | 100% / 0 — no variance observed |
+| false abstentions (of 17) | **1 – 2** |
+| action correctness (key-match) | 93.3% – 93.8% |
+| **severity accuracy (in-scope)** | **68.2% – 81.8%** — a 13.6-point spread |
+| type accuracy (in-scope) | 90.9% in every run |
+| cost per incident | $0.0135 – $0.0142 |
+| end-to-end p95 | 8.18s – 15.18s |
+
+The false abstentions are INC-0014 in every run, joined by INC-0032 in two of the
+four. Both are errors in the *conservative* direction — escalating something the
+system could have handled — which is the direction to be wrong in for this job,
+but the design target was 0 and no run met it.
+
+**Severity classification is the least stable number in this repository**, and a
+single measurement of it would be misleading in either direction. Quoting 81.8%
+would flatter it; quoting 68.2% would understate it. What is reproducible is that
+type accuracy sits at 90.9% every time while severity swings, which is why the
+SEV1 escalation rule is backed by a second line of defence rather than trusted on
+its own. Exact decision parity is pinned only in the offline suite, where stage
+outputs are held fixed.
 
 Two more things the runs surfaced, neither of them flattering:
 
@@ -148,12 +172,17 @@ drafter stretched to it.
 
 ### The LLM-judge note
 
-Measured **2026-07-04**, `claude-haiku-4-5`, reference-guided by the gold action
-key, over the 15 PROPOSE outcomes.
+Measured **2026-07-04** and again **2026-07-30**, `claude-haiku-4-5`,
+reference-guided by the gold action key, over the PROPOSE outcomes of each run.
 
-Semantic score **93.3%**; **agrees with key-match 15/15, 0 disagreements**;
-**$0.0103** spend, filed in its own ledger so the pipeline cost figures above stay
-comparable.
+| | 2026-07-04 | 2026-07-30 |
+|---|---|---|
+| semantic score | 93.3% (15 PROPOSE) | 93.8% (16 PROPOSE) |
+| agreement with key-match | 15/15, 0 disagreements | 16/16, 0 disagreements |
+| spend (own ledger) | $0.0103 | $0.0107 |
+
+The judge's tokens are filed apart from the pipeline's, so the cost figures above
+are comparable across runs whether or not the judge ran.
 
 The judge earned its keep on exactly the case it was built for — INC-0010, where
 it independently judged the proposed action incorrect, confirming the key-match
@@ -250,13 +279,13 @@ demo instead of showing a stale figure.
 - **The corpus is small and synthetic.** Seven runbooks, 32 incidents, authored
   alongside the system. recall@k saturates because of that, and none of these
   figures predict behaviour on a real runbook estate.
-- **Single runs, no confidence intervals.** Each configuration was measured once.
-  The false-abstention drift from 1 to 2 between otherwise identical runs is the
-  visible edge of that: LLM variance is real here and is not quantified.
-- **Severity classification is the weak head** at 77.3% in-scope. It is load
-  bearing, because the SEV1 escalation rule reads the predicted severity — the
-  runbook-directed escalation exists as a second line of defence precisely
-  because the first one is fallible.
+- **Four runs is enough to see variance, not enough to bound it.** The ranges in
+  the spread table are observed minima and maxima over four runs, not confidence
+  intervals. A fifth run could fall outside them.
+- **Severity classification is the weak head**, observed between 68.2% and 81.8%
+  in-scope. It is load bearing, because the SEV1 escalation rule reads the
+  predicted severity — the runbook-directed escalation exists as a second line of
+  defence precisely because the first one is fallible.
 - **Two guardrail layers are unproven live**, as described above.
 - **The judge is a note.** It agreed with key-match everywhere; on a closed action
   enum that is expected, and it is not independent evidence of quality.

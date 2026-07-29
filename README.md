@@ -10,24 +10,29 @@ escalates to a human**. It never executes remediation.
 
 An agent that can act is only as trustworthy as its willingness *not* to. So the
 thing this repository measures is not how often the agent is right — it is how
-reliably it declines. On a frozen set of 32 synthetic incidents, across three
-full-pipeline runs:
+reliably it declines. On a frozen set of 32 synthetic incidents, over **four**
+full-pipeline runs, reported as ranges because a single run would hide how much
+these numbers move:
 
-| | measured | what it means |
+| | measured (4 runs) | what it means |
 |---|---|---|
-| abstention rate | **100%** (15/15 must-abstain) | it never proposed an action on an incident that needed a human |
-| **missed escalations** | **0** | the dangerous error has not occurred in any measured run |
-| false abstentions | **2 of 17** answerable | it *over*-escalates — see below |
-| action correctness | **93.3%** (14/15 PROPOSE, key-match) | the LLM judge agreed 15/15 |
-| cost | **$0.0140** per incident | the Opus drafter is ≈93% of it |
-| latency | **p50 5.22s / p95 10.80s** | draft is the lever: p50 3.55s |
+| abstention rate | **100%** (15/15 must-abstain), every run | it never proposed an action on an incident that needed a human |
+| **missed escalations** | **0**, every run | the dangerous error has not occurred in any measured run |
+| false abstentions | **1–2 of 17** answerable | it *over*-escalates — see below |
+| action correctness | **93.3–93.8%** (key-match) | the LLM judge agreed with it in every case, both times it ran |
+| cost | **$0.0135–$0.0142** per incident | the Opus drafter is ≈93% of it |
+| latency | **p50 5.2–6.8s / p95 8.2–15.2s** | draft is the lever |
 
-**The false abstentions are the honest part.** Two answerable incidents were
-escalated that did not need to be, and the count moved between otherwise
-identical runs (1, then 2, then 2) — LLM variance, not a fixed property. Both
-errors are in the conservative direction, which is the direction to be wrong in
-for this job, but the design target was 0 and it was not met.
-[`docs/EVALUATION.md`](docs/EVALUATION.md) has every number, its date, its
+**The two headline numbers are the only ones that did not move.** Abstention and
+missed escalations were identical in all four runs; everything else has a spread,
+and severity classification has a 13-point one. Ranges are honest here in a way
+a single column would not be.
+
+**The false abstentions are the honest part.** One or two answerable incidents
+per run were escalated that did not need to be — LLM variance in the drafter, not
+a fixed property. Both errors are in the conservative direction, which is the
+direction to be wrong in for this job, but the design target was 0 and no run met
+it. [`docs/EVALUATION.md`](docs/EVALUATION.md) has every run, its date, its
 reproduce command, and what it fails to show.
 
 Runbook search is **not reimplemented here**: it reuses the retrieval package from
