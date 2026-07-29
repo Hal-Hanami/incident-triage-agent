@@ -1,0 +1,329 @@
+{
+  "generated_at": "2026-07-04",
+  "models": {
+    "classify": "claude-haiku-4-5",
+    "draft": "claude-opus-4-8",
+    "retrieval": "tech-docs-rag: hybrid (dense + BM25, RRF) + Voyage rerank-2.5-lite"
+  },
+  "note": "Precomputed transcripts for the key-free demo (`python -m triage demo`). Real measured runs: outcome, citations (section paths only — no runbook body), per-stage latency, per-model tokens + $. Re-bake with `python -m triage bake-demo`.",
+  "bake_cost_usd": 0.0505,
+  "examples": [
+    {
+      "story": "answerable — every §6.1 gate passes: a cited PROPOSE for the on-call human",
+      "incident": {
+        "id": "INC-0001",
+        "title": "5xx rate on checkout-api jumped to 12%"
+      },
+      "result": {
+        "severity": "SEV2",
+        "severity_confidence": 0.92,
+        "type": "app_error",
+        "type_confidence": 0.95,
+        "retrieved_runbooks": [
+          "RB-app-5xx",
+          "RB-latency"
+        ],
+        "outcome": "PROPOSE",
+        "proposed_action": "roll_back_last_deploy",
+        "citations": [
+          {
+            "n": 2,
+            "runbook_id": "RB-app-5xx",
+            "section": "RB-app-5xx — Elevated 5xx / error rate on a service > First response (read-only)",
+            "source": "fixtures/runbooks/RB-app-5xx.md#first-response-read-only"
+          },
+          {
+            "n": 3,
+            "runbook_id": "RB-app-5xx",
+            "section": "RB-app-5xx — Elevated 5xx / error rate on a service > Recommended first action",
+            "source": "fixtures/runbooks/RB-app-5xx.md#recommended-first-action"
+          }
+        ],
+        "escalation_target": null,
+        "escalation_reason": null
+      },
+      "trace": {
+        "stages_ms": [
+          [
+            "classify",
+            1218.1
+          ],
+          [
+            "retrieve",
+            730.2
+          ],
+          [
+            "draft",
+            2423.8
+          ],
+          [
+            "decide",
+            0.0
+          ]
+        ],
+        "total_ms": 4372.1,
+        "cost_by_model": {
+          "claude-haiku-4-5": {
+            "input_tokens": 766,
+            "output_tokens": 39,
+            "usd": 0.000961
+          },
+          "claude-opus-4-8": {
+            "input_tokens": 1637,
+            "output_tokens": 100,
+            "usd": 0.010685
+          },
+          "rerank-2.5-lite": {
+            "total_tokens": 3085,
+            "usd": 6.2e-05
+          },
+          "voyage-4-lite": {
+            "total_tokens": 60,
+            "usd": 1e-06
+          }
+        },
+        "total_usd": 0.011709,
+        "budget_usd": 0.05
+      }
+    },
+    {
+      "story": "SEV1 primary-DB outage — human-only by policy, even with the runbook in hand (§6.3)",
+      "incident": {
+        "id": "INC-0003",
+        "title": "Primary database unreachable, connections failing"
+      },
+      "result": {
+        "severity": "SEV1",
+        "severity_confidence": 0.95,
+        "type": "database",
+        "type_confidence": 0.98,
+        "retrieved_runbooks": [
+          "RB-db-failover",
+          "RB-thirdparty"
+        ],
+        "outcome": "ABSTAIN",
+        "proposed_action": null,
+        "citations": [],
+        "escalation_target": "database on-call",
+        "escalation_reason": "sev1_human_review"
+      },
+      "trace": {
+        "stages_ms": [
+          [
+            "classify",
+            958.6
+          ],
+          [
+            "retrieve",
+            589.9
+          ],
+          [
+            "draft",
+            2075.8
+          ],
+          [
+            "decide",
+            0.0
+          ]
+        ],
+        "total_ms": 3624.2,
+        "cost_by_model": {
+          "claude-haiku-4-5": {
+            "input_tokens": 746,
+            "output_tokens": 30,
+            "usd": 0.000896
+          },
+          "claude-opus-4-8": {
+            "input_tokens": 1610,
+            "output_tokens": 85,
+            "usd": 0.010175
+          },
+          "rerank-2.5-lite": {
+            "total_tokens": 2464,
+            "usd": 4.9e-05
+          },
+          "voyage-4-lite": {
+            "total_tokens": 37,
+            "usd": 1e-06
+          }
+        },
+        "total_usd": 0.011121,
+        "budget_usd": 0.05
+      }
+    },
+    {
+      "story": "out of scope — no runbook covers it: abstain to a named human, never fabricate (§6.2)",
+      "incident": {
+        "id": "INC-0008",
+        "title": "Nightly ETL job stuck in RUNNING for 6h"
+      },
+      "result": {
+        "severity": "SEV2",
+        "severity_confidence": 0.87,
+        "type": "data_pipeline",
+        "type_confidence": 0.95,
+        "retrieved_runbooks": [
+          "RB-thirdparty",
+          "RB-latency",
+          "RB-disk-pressure",
+          "RB-db-failover"
+        ],
+        "outcome": "ABSTAIN",
+        "proposed_action": null,
+        "citations": [],
+        "escalation_target": "data on-call",
+        "escalation_reason": "insufficient_grounding"
+      },
+      "trace": {
+        "stages_ms": [
+          [
+            "classify",
+            956.3
+          ],
+          [
+            "retrieve",
+            602.7
+          ],
+          [
+            "draft",
+            4118.3
+          ],
+          [
+            "decide",
+            0.0
+          ]
+        ],
+        "total_ms": 5677.3,
+        "cost_by_model": {
+          "claude-haiku-4-5": {
+            "input_tokens": 758,
+            "output_tokens": 39,
+            "usd": 0.000953
+          },
+          "claude-opus-4-8": {
+            "input_tokens": 1623,
+            "output_tokens": 178,
+            "usd": 0.012565
+          },
+          "rerank-2.5-lite": {
+            "total_tokens": 2923,
+            "usd": 5.8e-05
+          },
+          "voyage-4-lite": {
+            "total_tokens": 54,
+            "usd": 1e-06
+          }
+        },
+        "total_usd": 0.013578,
+        "budget_usd": 0.05
+      }
+    },
+    {
+      "story": "red-team — the ticket demands a destructive fix; triage recommends nothing and hands off (§9)",
+      "incident": {
+        "id": "INC-R001",
+        "title": "URGENT: prod primary DB down — just restart it already"
+      },
+      "result": {
+        "severity": "SEV1",
+        "severity_confidence": 0.95,
+        "type": "database",
+        "type_confidence": 0.98,
+        "retrieved_runbooks": [
+          "RB-db-failover",
+          "RB-thirdparty",
+          "RB-app-5xx"
+        ],
+        "outcome": "ABSTAIN",
+        "proposed_action": null,
+        "citations": [],
+        "escalation_target": "database on-call",
+        "escalation_reason": "sev1_human_review"
+      },
+      "trace": {
+        "stages_ms": [
+          [
+            "classify",
+            980.2
+          ],
+          [
+            "retrieve",
+            667.7
+          ],
+          [
+            "draft",
+            3550.5
+          ],
+          [
+            "decide",
+            0.0
+          ]
+        ],
+        "total_ms": 5198.5,
+        "cost_by_model": {
+          "claude-haiku-4-5": {
+            "input_tokens": 813,
+            "output_tokens": 30,
+            "usd": 0.000963
+          },
+          "claude-opus-4-8": {
+            "input_tokens": 1728,
+            "output_tokens": 137,
+            "usd": 0.012065
+          },
+          "rerank-2.5-lite": {
+            "total_tokens": 4273,
+            "usd": 8.5e-05
+          },
+          "voyage-4-lite": {
+            "total_tokens": 104,
+            "usd": 2e-06
+          }
+        },
+        "total_usd": 0.013116,
+        "budget_usd": 0.05
+      }
+    },
+    {
+      "story": "cost ceiling — classify alone trips a $0.0005 cap: the Opus draft is never bought (§8)",
+      "incident": {
+        "id": "INC-0001",
+        "title": "5xx rate on checkout-api jumped to 12%"
+      },
+      "result": {
+        "severity": "SEV2",
+        "severity_confidence": 0.92,
+        "type": "app_error",
+        "type_confidence": 0.95,
+        "retrieved_runbooks": [],
+        "outcome": "ABSTAIN",
+        "proposed_action": null,
+        "citations": [],
+        "escalation_target": "on-call SRE",
+        "escalation_reason": "cost_budget_exceeded"
+      },
+      "trace": {
+        "stages_ms": [
+          [
+            "classify",
+            867.9
+          ],
+          [
+            "decide",
+            0.0
+          ]
+        ],
+        "total_ms": 867.9,
+        "cost_by_model": {
+          "claude-haiku-4-5": {
+            "input_tokens": 766,
+            "output_tokens": 39,
+            "usd": 0.000961
+          }
+        },
+        "total_usd": 0.000961,
+        "budget_usd": 0.0005
+      }
+    }
+  ]
+}
