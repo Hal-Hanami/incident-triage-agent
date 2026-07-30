@@ -108,25 +108,31 @@ jobs:
         run: |
           python - <<'PY'
           import pathlib, re, subprocess, sys
-          # Vocabulary belonging to the author's plans rather than to this system.
-          # It has reached a published file before: a design section closed by
-          # naming which hiring targets would care about it, and the sweep meant
-          # to catch that filtered by extension and missed it. This one does not.
-          BANNED = re.compile(
-              r"pillar|柱[1-4]|面接|履歴書|職務経歴|recruiter|talking point"
-              r"|portfolio|targets? [ABC]\b|\bM[1-9]\b", re.I)
+          # This repository is written for a reader who has never met its author,
+          # so it documents the system and not the plans around it. Two rules,
+          # each from something that reached a published file: the documentation
+          # is English throughout (the author's working notes are not, and a
+          # stray line of them is the clearest sign a private note leaked), and
+          # no text may carry planning or hiring vocabulary — a design section
+          # once closed by naming which hiring targets would care about it.
+          #
+          # The sweep reads every tracked file. The version that filtered by
+          # extension is the one that missed a JSON file.
+          JAPANESE = re.compile(r"[\u3040-\u309f\u30a0-\u30ff]")
+          PLANNING = re.compile(
+              r"pillar|recruiter|portfolio|talking point|targets? [ABC]\b|\bM[1-9]\b",
+              re.I)
           tracked = subprocess.run(["git", "ls-files"], capture_output=True,
                                    text=True, check=True).stdout.split()
           hits = []
           for rel in tracked:
-              if rel == ".github/workflows/ci.yml":
-                  continue  # the one file that has to spell the words it bans
               try:
                   lines = pathlib.Path(rel).read_text(encoding="utf-8").splitlines()
               except (UnicodeDecodeError, IsADirectoryError, FileNotFoundError):
                   continue
+              own = rel == ".github/workflows/ci.yml"  # has to spell what it bans
               for i, line in enumerate(lines, 1):
-                  if BANNED.search(line):
+                  if JAPANESE.search(line) or (PLANNING.search(line) and not own):
                       hits.append(f"{rel}:{i}: {line.strip()[:100]}")
           if hits:
               sys.exit("these read as the author's context, not the system's:\n  "
