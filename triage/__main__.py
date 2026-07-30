@@ -276,7 +276,15 @@ def cmd_bake_demo(args: argparse.Namespace) -> None:
           f"bake cost ${payload['bake_cost_usd']:.4f})")
 
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
+    """The whole flag surface, built apart from `main()` so tests can drive it.
+
+    A parser assembled inside `main()` can only be exercised by running the
+    process, which in practice means it is not exercised at all: every paid
+    command needs a key, so the tests skipped this layer entirely and the
+    translation from flag to call went unchecked. Returning the parser makes the
+    namespace it produces an ordinary value to assert on.
+    """
     parser = argparse.ArgumentParser(prog="triage", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -355,6 +363,11 @@ def main() -> None:
         help="re-bake demo/examples.json from real pipeline runs (needs both keys + a built index)")
     p_bake.set_defaults(func=cmd_bake_demo)
 
+    return parser
+
+
+def main() -> None:
+    parser = build_parser()
     _load_dotenv()  # make `ANTHROPIC_API_KEY=...` in a local .env work for `eval`
     args = parser.parse_args()
     args.func(args)

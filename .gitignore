@@ -13,6 +13,8 @@ uv.lock
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+.coverage
+coverage.json
 
 # local data / generated artifacts (the runbook index is rebuilt, not committed;
 # demo/examples.json IS committed — it is the key-free baked demo, design §11)
