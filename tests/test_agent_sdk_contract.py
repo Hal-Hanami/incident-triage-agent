@@ -19,19 +19,29 @@ anywhere; CI installs the extra so the check actually gates.
 from __future__ import annotations
 
 import dataclasses
+import importlib
+import importlib.util
 import inspect
 
 import pytest
 
-sdk = pytest.importorskip(
-    "claude_agent_sdk",
+from triage import agent as agent_mod
+
+# Skipped at run time rather than at import time, so the suite collects the same
+# number of tests everywhere and the count the docs quote does not depend on
+# which optional extras happen to be installed.
+pytestmark = pytest.mark.skipif(
+    importlib.util.find_spec("claude_agent_sdk") is None,
     reason="the optional `agent` extra is not installed (pip install -e '.[agent]')",
 )
 
-from triage import agent as agent_mod  # noqa: E402  (after the skip)
+
+@pytest.fixture(scope="module")
+def sdk():
+    return importlib.import_module("claude_agent_sdk")
 
 
-def test_every_symbol_the_shell_binds_still_exists():
+def test_every_symbol_the_shell_binds_still_exists(sdk):
     """The names §9 and §12 list, checked as names rather than quoted as prose."""
     for name in ("create_sdk_mcp_server", "tool", "ClaudeAgentOptions", "ClaudeSDKClient",
                  "AssistantMessage", "ToolUseBlock", "ResultMessage", "HookMatcher",
@@ -39,7 +49,7 @@ def test_every_symbol_the_shell_binds_still_exists():
         assert hasattr(sdk, name), f"claude-agent-sdk no longer exports {name!r}"
 
 
-def test_the_options_object_still_accepts_every_field_the_policy_sets():
+def test_the_options_object_still_accepts_every_field_the_policy_sets(sdk):
     """Each field here *is* one of the §9 guarantees; a dropped one is a dropped
     guarantee, not a cosmetic API change."""
     fields = {f.name for f in dataclasses.fields(sdk.ClaudeAgentOptions)}
@@ -60,20 +70,20 @@ def test_the_options_object_still_accepts_every_field_the_policy_sets():
     )
 
 
-def test_the_permission_results_take_the_arguments_the_guard_passes():
+def test_the_permission_results_take_the_arguments_the_guard_passes(sdk):
     """`can_use_tool` returns these two; a changed signature would make every
     denial a TypeError at the moment the guard is most needed."""
     inspect.signature(sdk.PermissionResultAllow).bind()
     inspect.signature(sdk.PermissionResultDeny).bind(message="denied", interrupt=False)
 
 
-def test_the_mcp_server_and_tool_decorator_take_the_calls_the_shell_makes():
+def test_the_mcp_server_and_tool_decorator_take_the_calls_the_shell_makes(sdk):
     inspect.signature(sdk.create_sdk_mcp_server).bind(
         name="triage", version="0.1.0", tools=[])
     inspect.signature(sdk.tool).bind("classify_incident", "description", {})
 
 
-def test_the_result_message_still_carries_the_cost_accounting_seven_depends_on():
+def test_the_result_message_still_carries_the_cost_accounting_seven_depends_on(sdk):
     """§7 cross-checks the SDK's own cost against ours, and §8 folds the
     orchestrator's spend into the incident budget. Both read these fields."""
     fields = {f.name for f in dataclasses.fields(sdk.ResultMessage)}
@@ -82,7 +92,7 @@ def test_the_result_message_still_carries_the_cost_accounting_seven_depends_on()
         assert name in fields, f"ResultMessage no longer carries {name!r}"
 
 
-def test_the_policy_we_pin_offline_is_the_policy_the_sdk_receives():
+def test_the_policy_we_pin_offline_is_the_policy_the_sdk_receives(sdk):
     """`tests/test_agent.py` asserts against `guardrail_spec()`. That is only
     meaningful if the spec's keys are really the options' keys."""
     fields = {f.name for f in dataclasses.fields(sdk.ClaudeAgentOptions)}

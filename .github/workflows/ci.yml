@@ -1,15 +1,25 @@
 name: tests
 
-# The offline suite (fakes; no key, no network) — the same 173 tests the README
+# The offline suite (fakes; no key, no network) — the same 263 tests the README
 # claims. CI exists so that claim is third-party verifiable, not self-reported.
 #
-# The suite collects 178. The five that do not run here compare the stand-in rag
-# package with the real one, and no CI runner has a tech-docs-rag checkout beside
-# this repo, so they skip. Enforcing that surface is the job of the repository
-# that owns it: `tests/test_public_api.py` there fails when it moves.
+# The checks after the suite exist because the defects this project has actually
+# shipped were not failures of the tests but gaps in their reach: the CLI module
+# sat at 17% coverage while nothing verified that `--no-draft` withheld the Opus
+# drafter, and two of the design's sections were cited by no test at all. A green
+# suite is evidence about the code it touches and nothing more, so the build also
+# fails when a module is unreached, when a design section is unpinned, when the
+# docs quote a stale count, or when a reference points at nothing.
 #
-# `pip install -e '.[dev]'` rather than `uv sync`: uv.lock is not committed, and
-# the offline core is stdlib-only, so there is nothing to pin.
+# The `agent` extra is installed so the SDK contract test runs here rather than
+# skipping: every §9 guardrail is a keyword argument to that package's dataclass,
+# and a rename upstream must fail the build rather than a paid run. The five that
+# still skip compare the stand-in rag package with the real one, and no runner has
+# a tech-docs-rag checkout beside this repo; enforcing that surface is the job of
+# the repository that owns it, whose `tests/test_public_api.py` fails when it moves.
+#
+# `pip install -e` rather than `uv sync`: uv.lock is not committed, and the
+# offline core is stdlib-only, so there is nothing to pin.
 on:
   push:
     branches: [main]
@@ -23,5 +33,106 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: pip install -e '.[dev]'
-      - run: python -m pytest -q
+      - run: pip install -e '.[dev,agent]' pytest-cov
+
+      - name: suite and coverage
+        run: >
+          python -m pytest -q --cov=triage --cov-report=term-missing
+          --cov-report=json --cov-fail-under=90
+
+      - name: every module must be reached by at least one test
+        run: |
+          python - <<'PY'
+          import json, sys
+          files = json.load(open("coverage.json"))["files"]
+          unreached = sorted(f for f, d in files.items()
+                             if d["summary"]["percent_covered"] == 0)
+          if unreached:
+              sys.exit("no test reaches: " + ", ".join(unreached))
+          print(f"all {len(files)} modules are reached")
+          PY
+
+      - name: the count the docs quote must be the count that ran
+        run: |
+          n=$(python -m pytest --collect-only -q | tail -1 | grep -oE '^[0-9]+')
+          for f in README.md docs/EVALUATION.md .github/workflows/ci.yml; do
+            grep -q "$n tests" "$f" || { echo "$f does not say '$n tests'"; exit 1; }
+          done
+          echo "docs and suite agree: $n tests"
+
+      - name: every section of the design must be pinned by a test
+        run: |
+          python - <<'PY'
+          import pathlib, re, sys
+          design = pathlib.Path("docs/design.md").read_text(encoding="utf-8")
+          sections = re.findall(r"^## §(\d+)\s", design, re.M)
+          if not sections:
+              sys.exit("docs/design.md declares no numbered sections")
+          tests = "\n".join(p.read_text(encoding="utf-8")
+                            for p in pathlib.Path("tests").glob("*.py"))
+          # citing §4.3 counts as citing §4 — a subsection belongs to its section
+          unpinned = [n for n in sections if not re.search(rf"§{n}(?!\d)", tests)]
+          if unpinned:
+              sys.exit("no test cites design " + ", ".join(f"§{n}" for n in unpinned)
+                       + " — a written rule nobody checks is one the next change breaks")
+          print(f"all {len(sections)} design sections are pinned by a test")
+          PY
+
+      - name: every section reference must resolve inside this repository
+        run: |
+          python - <<'PY'
+          import pathlib, re, subprocess, sys
+          design = pathlib.Path("docs/design.md").read_text(encoding="utf-8")
+          defined = {int(n) for n in re.findall(r"^## §(\d+)\s", design, re.M)}
+          tracked = subprocess.run(["git", "ls-files"], capture_output=True,
+                                   text=True, check=True).stdout.split()
+          # A reader can only resolve a section number this repository defines.
+          # Numbers pointing at an outside plan are the class of reference that
+          # survives a repo being rebuilt, precisely because nothing fails on them.
+          dangling = []
+          for rel in tracked:
+              try:
+                  text = pathlib.Path(rel).read_text(encoding="utf-8")
+              except (UnicodeDecodeError, IsADirectoryError, FileNotFoundError):
+                  continue
+              for n in sorted({int(m) for m in re.findall(r"§(\d+)", text)}):
+                  if n not in defined:
+                      dangling.append(f"{rel}: §{n}")
+          if dangling:
+              sys.exit("reference to a section docs/design.md does not define:\n  "
+                       + "\n  ".join(dangling))
+          print(f"every § reference resolves to one of {len(defined)} defined sections")
+          PY
+
+      - name: the repository must describe the system and nothing else
+        run: |
+          python - <<'PY'
+          import pathlib, re, subprocess, sys
+          # Vocabulary belonging to the author's plans rather than to this system.
+          # It has reached a published file before: a design section closed by
+          # naming which hiring targets would care about it, and the sweep meant
+          # to catch that filtered by extension and missed it. This one does not.
+          BANNED = re.compile(
+              r"pillar|柱[1-4]|面接|履歴書|職務経歴|recruiter|talking point"
+              r"|portfolio|targets? [ABC]\b|\bM[1-9]\b", re.I)
+          tracked = subprocess.run(["git", "ls-files"], capture_output=True,
+                                   text=True, check=True).stdout.split()
+          hits = []
+          for rel in tracked:
+              if rel == ".github/workflows/ci.yml":
+                  continue  # the one file that has to spell the words it bans
+              try:
+                  lines = pathlib.Path(rel).read_text(encoding="utf-8").splitlines()
+              except (UnicodeDecodeError, IsADirectoryError, FileNotFoundError):
+                  continue
+              for i, line in enumerate(lines, 1):
+                  if BANNED.search(line):
+                      hits.append(f"{rel}:{i}: {line.strip()[:100]}")
+          if hits:
+              sys.exit("these read as the author's context, not the system's:\n  "
+                       + "\n  ".join(hits))
+          print(f"swept {len(tracked)} tracked files")
+          PY
+
+      - name: the fixtures the numbers are measured over must be valid
+        run: python -m triage validate
