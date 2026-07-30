@@ -8,6 +8,10 @@ escalates to a human**. It never executes remediation.
 
 [![tests](https://github.com/Hal-Hanami/incident-triage-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Hal-Hanami/incident-triage-agent/actions/workflows/ci.yml)
 
+**[Live demo →](https://incident-triage-agent.streamlit.app)** — five real measured
+transcripts, replayed. Four of the five are refusals, which is the point. No key
+needed; nothing is called live.
+
 An agent that can act is only as trustworthy as its willingness *not* to. So the
 thing this repository measures is not how often the agent is right — it is how
 reliably it declines. On a frozen set of 32 synthetic incidents, over **four**
@@ -78,16 +82,17 @@ python -m triage demo
 # check fixture integrity
 python -m triage validate
 
-# the offline test suite — 263 tests: pricing math (incl. cache tokens), schema
+# the offline test suite — 286 tests: pricing math (incl. cache tokens), schema
 # invariants, fixtures, the full PROPOSE/ABSTAIN decision table, the budget/skip
 # wiring, the guardrail policy *and the callbacks that enforce it*, the CLI's
 # flag-to-stage wiring, the published figures against the code that produces
 # them, and the pipeline eval loop with fakes.
-# 252 of those run anywhere. The other 11 check this repo against packages it
-# does not own: 5 compare the stand-in rag package with the real one (skipped
-# unless a tech-docs-rag checkout sits beside this repo), and 6 check the Agent
-# SDK surface the read-only guardrail is built from (skipped unless the optional
-# `agent` extra is installed; CI installs it).
+# 253 of those need nothing but the stdlib. The other 33 check this repo against
+# software it does not own and skip when it is absent: 5 compare the stand-in rag
+# package with the real one (needs a tech-docs-rag checkout alongside), 6 check
+# the Agent SDK surface the read-only guardrail is built from (needs the `agent`
+# extra), and 22 drive the hosted page (needs streamlit). CI installs all but the
+# sibling checkout, so 281 run there.
 uv run --with pytest python -m pytest -q       # or: pip install -e '.[dev]' && pytest -q
 ```
 

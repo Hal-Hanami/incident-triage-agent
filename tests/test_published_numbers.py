@@ -117,6 +117,20 @@ def test_the_invariant_metrics_really_are_invariant_across_every_run():
 
 # --- the README quotes the record ------------------------------------------------------
 
+def _recorded() -> set[float]:
+    """Every figure in the record, at each precision it could honestly be quoted
+    at. The README and the page both round — 15.18s is published as 15.2s — so a
+    quote must *derive* from the record rather than appear in it verbatim."""
+    values = set()
+    for raw in re.findall(r"\$?\d+(?:\.\d+)?%?", EVALUATION):
+        number = float(raw.replace("$", "").replace("%", ""))
+        values |= {number, round(number, 1), float(round(number))}
+    return values
+
+
+_RECORDED = _recorded()
+
+
 def _headline_table() -> str:
     return README.split("| | measured (4 runs) | what it means |", 1)[1].split("\n\n", 1)[0]
 
@@ -127,22 +141,39 @@ def test_the_readme_headline_figures_come_from_the_evaluation_record():
     verbatim. A README that rounds is fine; one that rounds a number nobody
     measured is not.
     """
-    record = set()
-    for value in re.findall(r"\$?\d+(?:\.\d+)?%?", EVALUATION):
-        raw = float(value.replace("$", "").replace("%", ""))
-        record |= {raw, round(raw, 1), round(raw)}
-
     figures = [f for f in re.findall(r"\*\*([^*]+)\*\*", _headline_table())
                if any(c.isdigit() for c in f)]
     assert figures, "the README headline table no longer contains any figures"
 
     for figure in figures:
         for number in _nums(figure):
-            assert number in record, (
+            assert number in _RECORDED, (
                 f"the README headlines {number} (in {figure!r}), which does not "
                 f"appear in docs/EVALUATION.md at any published precision. The "
                 f"record is the source; the README quotes it."
             )
+
+
+def test_the_public_page_quotes_the_same_record():
+    """The page is the fourth place a measured figure appears, and the one most
+    people will see. It is also the one nobody re-reads when a run is repeated,
+    so it is where a superseded number would sit longest.
+
+    Read as text rather than rendered: this must hold wherever the suite runs,
+    including without Streamlit installed.
+    """
+    app = (ROOT / "app.py").read_text(encoding="utf-8")
+    footer = app.split("What is actually measured", 1)[1].split('")', 1)[0]
+    # Every figure, not only the emphasised ones: the cost range carries no bold
+    # markers, and an extraction keyed on formatting silently skipped it.
+    quoted = _nums(footer)
+    assert quoted, "the page footer no longer quotes any measured figure"
+
+    for number in quoted:
+        assert number in _RECORDED, (
+            f"app.py quotes {number}, which docs/EVALUATION.md no longer contains. "
+            f"The page quotes the record; it does not keep its own copy."
+        )
 
 
 def test_the_readme_counts_the_runs_the_record_actually_holds():

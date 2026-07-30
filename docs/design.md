@@ -283,6 +283,15 @@ control. We never dress a noisy number as a precise one.
   like tech-docs-rag's baked demo: precomputed, body-free transcripts (real measured
   runs; citations carry section paths, never runbook text), replayed through the
   live CLI's own renderers by `python -m triage demo` with no key and no network.
+  The hosted page _(`app.py`)_ replays the same file through the same
+  `demo.restore()`, so the two surfaces cannot disagree about what a run did.
+  Dollars are re-derived from the recorded token counts at render time, so a rate
+  change re-prices both rather than leaving either quoting a stale figure.
+- **The hosted page has no live mode, and cannot have one.** A live agent run
+  needs the Claude Code CLI on PATH, which a hosted app does not have; a live
+  pipeline run needs a built runbook index, which is generated rather than
+  committed. Offering a key box would therefore be offering a button that cannot
+  work. The page is a replay, and says so.
 
 ## §12 Honesty notes
 

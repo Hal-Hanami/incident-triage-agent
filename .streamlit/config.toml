@@ -1,0 +1,9 @@
+# Streamlit config for the public demo. Theme only — no secrets here. The page
+# needs no key, and any that were ever required would go in the Streamlit Cloud
+# dashboard or a gitignored .streamlit/secrets.toml, never in a committed file.
+[theme]
+base = "light"
+primaryColor = "#d97757"
+
+[browser]
+gatherUsageStats = false

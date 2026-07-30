@@ -1,0 +1,11 @@
+# Public demo (Streamlit Community Cloud). The page replays baked transcripts
+# from demo/examples.json through the project's own offline core, which is
+# stdlib-only — no LLM call, no API key, no runbook index. So the host installs
+# Streamlit and nothing else.
+streamlit>=1.40
+
+# The paid paths are not reachable from the page and are not installed here.
+# To run them locally, install the project with the extras that match the stage:
+#   pip install -e '.[live]'   classify + draft   (anthropic)
+#   pip install -e '.[agent]'  the Agent SDK shell (also needs the Claude Code CLI)
+# plus sqlite-vec and a built index for retrieval. See README "Measure (needs keys)".

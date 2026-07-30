@@ -1,6 +1,6 @@
 name: tests
 
-# The offline suite (fakes; no key, no network) — the same 263 tests the README
+# The offline suite (fakes; no key, no network) — the same 286 tests the README
 # claims. CI exists so that claim is third-party verifiable, not self-reported.
 #
 # The checks after the suite exist because the defects this project has actually
@@ -13,10 +13,14 @@ name: tests
 #
 # The `agent` extra is installed so the SDK contract test runs here rather than
 # skipping: every §9 guardrail is a keyword argument to that package's dataclass,
-# and a rename upstream must fail the build rather than a paid run. The five that
-# still skip compare the stand-in rag package with the real one, and no runner has
-# a tech-docs-rag checkout beside this repo; enforcing that surface is the job of
-# the repository that owns it, whose `tests/test_public_api.py` fails when it moves.
+# and a rename upstream must fail the build rather than a paid run. Streamlit
+# comes from requirements.txt — the same file the public deploy installs — so the
+# hosted page is exercised against the dependency it is actually served with.
+#
+# The five that still skip compare the stand-in rag package with the real one, and
+# no runner has a tech-docs-rag checkout beside this repo; enforcing that surface
+# is the job of the repository that owns it, whose `tests/test_public_api.py`
+# fails when it moves.
 #
 # `pip install -e` rather than `uv sync`: uv.lock is not committed, and the
 # offline core is stdlib-only, so there is nothing to pin.
@@ -33,11 +37,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: pip install -e '.[dev,agent]' pytest-cov
+      - run: pip install -e '.[dev,agent]' pytest-cov -r requirements.txt
 
+      # `--cov=app` too: the hosted page is the surface most readers see, so
+      # leaving it outside the measurement would reopen exactly the gap these
+      # checks exist to close.
       - name: suite and coverage
         run: >
-          python -m pytest -q --cov=triage --cov-report=term-missing
+          python -m pytest -q --cov=triage --cov=app --cov-report=term-missing
           --cov-report=json --cov-fail-under=90
 
       - name: every module must be reached by at least one test

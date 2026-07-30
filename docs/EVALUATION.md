@@ -4,19 +4,21 @@ Every number this repository claims, with the date it was measured, the set it
 was measured over, and the command that reproduces it. Where a number is weak,
 noisy, or an artifact of the corpus, it says so here rather than in a footnote.
 
-The offline suite (**263 tests**, of which 252 run with no key, no network and no
+The offline suite (**286 tests**, of which 253 run with no key, no network and no
 optional dependency) is the other half of this: it pins the decision table, the
 guardrail policy *and the callbacks that apply it*, the pricing math, the CLI's
 flag-to-stage wiring, and the demo round trip, so the numbers below are the only
 part that needs a paid run. It also checks this page against the code and the
 runs behind it: the ranges must bound the runs they summarise, the slice sizes
-must match the fixture, and the README must quote what is recorded here.
+must match the fixture, and both the README and the hosted page must quote what
+is recorded here.
 
-The other 11 tests check this repository against packages it does not own, and
-skip when those are absent: 5 compare the stand-in `rag` package with the real
-one (needs a tech-docs-rag checkout alongside), and 6 check the Agent SDK surface
-the read-only guardrail is built from (needs the optional `agent` extra). CI
-installs the SDK so those 6 gate rather than skip.
+The other 33 tests check this repository against software it does not own, and
+skip when it is absent: 5 compare the stand-in `rag` package with the real one
+(needs a tech-docs-rag checkout alongside), 6 check the Agent SDK surface the
+read-only guardrail is built from (needs the optional `agent` extra), and 22
+drive the hosted page through Streamlit's own harness. CI installs everything but
+the sibling checkout, so 281 gate rather than skip.
 
 ## The incident set
 
