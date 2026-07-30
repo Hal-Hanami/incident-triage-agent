@@ -5,6 +5,12 @@
 > [`EVALUATION.md`](EVALUATION.md) is the **record of what those measurements
 > returned**, including where they are weak. Code boundaries cite these section
 > numbers (e.g. `design §6.3`).
+>
+> **Section numbers are stable.** Code, tests, and fixtures cite them, so a number
+> is never reused or renumbered — a moved `§` silently repoints every citation to
+> the wrong rule. Sections are appended; retired ones would be marked, not reissued.
+> Every numbered section is pinned by at least one test, and CI fails when one is
+> not: a rule nobody checks reads as a guarantee while being only a wish.
 
 ## §1 Purpose & thesis
 
@@ -189,6 +195,15 @@ selected incidents). The budget is the safety analog of tech-docs-rag's top-k co
 optimization: there it was "spend less per query"; here it is "never spend more
 than X on one incident, and degrade safely if you would."
 
+**The cap is inclusive.** Spending exactly the budget is *within* it; only
+spending strictly more has crossed it. Seven places compare a running cost
+against the ceiling — the trace's own check and its rendered verdict, the
+decider, the eval harness, the agent session and its draft tool, the CLI footer
+— and they are only consistent because all seven use the same strict
+comparison. One of them reading `>=` would abstain on an incident that never
+went over, and the disagreement is invisible except on a run that lands exactly
+on the cap.
+
 ## §9 Guardrails — read-only, no destructive operations _(`triage/agent.py`)_
 
 The guarantee is **structural, not prompt-based**: the agent is given no tool that
@@ -217,9 +232,10 @@ suite pins the policy and denies every mutating/near-miss tool name; live, the a
 CLI reports every tool call and guard denial per run (see `docs/EVALUATION.md`).
 
 > Why this is more than a system-prompt instruction: a prompt can be argued with; a
-> tool that doesn't exist cannot be called. The read-only property is a property of
-> the *harness*, which is exactly the "trustworthy, observable agent platform" story
-> targets A (in-house AI/DX) and C (DX/AI-platform enablement) care about.
+> tool that doesn't exist cannot be called. The read-only property belongs to the
+> *harness*, not to the orchestrating model's cooperation, so it holds even when
+> the model is talked into wanting otherwise — which is what the red-team fixture
+> exists to check.
 
 ## §10 Eval _(`triage/eval.py`)_
 

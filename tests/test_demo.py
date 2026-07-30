@@ -9,6 +9,7 @@ and it must stay body-free (citations carry section paths, never runbook text).
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from triage import demo as demo_mod
@@ -144,3 +145,45 @@ def test_load_examples_missing_file_says_how_to_rebake(tmp_path):
     import pytest
     with pytest.raises(SystemExit, match="bake-demo"):
         demo_mod.load_examples(tmp_path / "nope.json")
+
+
+def test_the_demo_shows_every_property_the_thesis_claims():
+    """§1 opens with four properties and maps each to the section that specifies
+    it. The demo is where a reader with no key sees them, so a property that no
+    baked entry exercises is one the repository only asserts in prose.
+
+    This also pins the mapping itself: §1's table names sections, and a heading
+    renumbered out from under it would leave the thesis pointing at nothing while
+    every other test stayed green.
+    """
+    design = (ROOT / "docs" / "design.md").read_text(encoding="utf-8")
+    headings = set(re.findall(r"^## §(\d+)\s", design, re.M))
+    claimed = re.findall(r"^\| \*\*([\w-]+)\*\* \| §(\d+) \|", design, re.M)
+    assert {p for p, _ in claimed} == {"Measured", "Guardrailed", "Cost-capped", "Observable"}
+    for prop, section in claimed:
+        assert section in headings, f"§1 maps {prop} to §{section}, which does not exist"
+
+    examples = demo_mod.load_examples()["examples"]
+
+    # Guardrailed (§9): the ticket that demands a destructive fix gets a handoff.
+    redteam = [e for e in examples if e["incident"]["id"] == "INC-R001"]
+    assert redteam and all(e["result"]["outcome"] == Outcome.ABSTAIN.value for e in redteam)
+
+    # Cost-capped (§8): a run really hit the ceiling and degraded rather than paid.
+    capped = [e for e in examples
+              if e["result"]["escalation_reason"] == "cost_budget_exceeded"]
+    assert capped, "no baked entry demonstrates the cost ceiling tripping"
+    for e in capped:
+        assert "draft" not in dict(e["trace"]["stages_ms"])  # the Opus draft was never bought
+
+    # Observable (§7): every entry carries per-stage timing and a per-model ledger.
+    for e in examples:
+        assert {"classify", "decide"} <= set(dict(e["trace"]["stages_ms"]))
+        assert e["trace"]["cost_by_model"] and e["trace"]["total_ms"] > 0
+
+    # Measured (§10): both outcomes appear, and a proposal is always cited.
+    assert {e["result"]["outcome"] for e in examples} == {Outcome.PROPOSE.value,
+                                                          Outcome.ABSTAIN.value}
+    for e in examples:
+        if e["result"]["outcome"] == Outcome.PROPOSE.value:
+            assert e["result"]["citations"]

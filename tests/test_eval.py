@@ -131,6 +131,29 @@ def test_evaluate_perfect_classifier_scores_100_and_leaves_later_stages_na():
     assert len(s["latencies"]) == len(rows)
 
 
+def test_an_unmeasured_metric_renders_as_na_and_never_as_a_zero():
+    """§12: status is stated, not implied.
+
+    `summarize` returning None is only half the promise — the report is what a
+    reader sees, and a stage that never ran must not print a figure there. "0.0%"
+    against retrieval recall would read as a measured total failure rather than
+    as a stage nobody bought, and those are opposite conclusions about the
+    system. The distinction exists only in the rendering, so it is pinned here.
+    """
+    incidents = schema.load_incidents(FIXTURE)
+    rows = eval_mod.evaluate(incidents, GoldClassifier(incidents))  # classify only
+    report = eval_mod.format_report(rows, eval_mod.summarize(rows))
+
+    for label in ("retrieval recall@1", "retrieval recall@3", "retrieval recall@k",
+                  "retrieval MRR", "abstention rate", "action correctness"):
+        line = next(ln for ln in report.splitlines() if label in ln)
+        assert "n/a" in line, f"{label!r} did not run, so it must report n/a: {line!r}"
+        assert "0.0%" not in line and "0.000" not in line
+
+    measured = next(ln for ln in report.splitlines() if "severity accuracy " in ln)
+    assert "100.0%" in measured  # a stage that did run still reports its number
+
+
 def test_evaluate_counts_misclassifications_over_in_scope():
     incidents = schema.load_incidents(FIXTURE)
     wrong = [i.id for i in incidents if i.in_scope][:2]

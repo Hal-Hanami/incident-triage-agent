@@ -77,6 +77,27 @@ def test_budget_trips_when_running_cost_exceeds_cap():
         trace.check_budget()
 
 
+def test_every_priced_model_carries_a_full_rate_card():
+    """§12: pricing is sourced, not memorized.
+
+    A model priced with only some of its rate kinds bills the missing ones at
+    zero — silently, since `cost_usd` sums whatever keys are present. That is how
+    a cost figure comes out confidently wrong: the cache-read rate is the one
+    most easily forgotten, and the orchestrator's spend is mostly cache reads.
+    """
+    for model, rates in observe.PRICING.items():
+        kinds = set(rates)
+        assert kinds <= set(observe._USAGE_KEY), (
+            f"{model} prices {sorted(kinds - set(observe._USAGE_KEY))}, which no "
+            f"usage field maps onto — those dollars would never be charged")
+        expected = ({"total"} if kinds == {"total"}
+                    else {"input", "output", "cache_read", "cache_write"})
+        assert kinds == expected, (
+            f"{model} prices {sorted(kinds)}; a Claude model needs {sorted(expected)} "
+            f"or an unpriced token kind bills as free")
+        assert all(rate > 0 for rate in rates.values())
+
+
 def test_the_cap_is_inclusive_and_every_module_reads_it_the_same_way():
     """§8: the budget is a ceiling you may spend up to, not one you must stay under.
 
