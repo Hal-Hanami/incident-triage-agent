@@ -77,6 +77,27 @@ def test_budget_trips_when_running_cost_exceeds_cap():
         trace.check_budget()
 
 
+def test_the_cap_is_inclusive_and_every_module_reads_it_the_same_way():
+    """§8: the budget is a ceiling you may spend up to, not one you must stay under.
+
+    Seven places compare a running cost against the cap — `Trace.check_budget`,
+    `format_trace`, `decide`, the eval harness, the agent session and its tool
+    guard, the CLI footer. They agree only by all being strict `>`; an `>=`
+    anywhere would abstain on an incident that never went over, and the
+    difference is invisible in any run that does not land exactly on the cap.
+    """
+    trace = observe.Trace()
+    trace.add_usage("claude-haiku-4-5", {"input_tokens": 50_000})   # exactly $0.05
+    exactly = trace.cost()
+    assert exactly == 0.05
+
+    trace.check_budget(exactly)                                     # at the cap: no trip
+    assert "within" in "\n".join(observe.format_trace(trace, budget=exactly))
+
+    with pytest.raises(observe.BudgetExceeded):                     # below it: trip
+        trace.check_budget(exactly - 0.01)
+
+
 def test_span_helper_is_noop_without_trace():
     with observe.span(None, "x"):
         pass  # must not raise
