@@ -4,10 +4,12 @@ Every number this repository claims, with the date it was measured, the set it
 was measured over, and the command that reproduces it. Where a number is weak,
 noisy, or an artifact of the corpus, it says so here rather than in a footnote.
 
-The offline suite (**173 tests**, no key, no network) is the other half of this:
-it pins the decision table, the guardrail policy *and the callbacks that apply
-it*, the pricing math, the retrieval adapter's import contract, and the demo
-round trip, so the numbers below are the only part that needs a paid run.
+The offline suite (**173 tests anywhere, 178 with a tech-docs-rag checkout
+alongside**, no key, no network) is the other half of this: it pins the decision
+table, the guardrail policy *and the callbacks that apply it*, the pricing math,
+the retrieval adapter's import contract, and the demo round trip, so the numbers
+below are the only part that needs a paid run. The five extra tests check the
+stand-in `rag` package against the real one, and skip when it is not there.
 
 ## The incident set
 

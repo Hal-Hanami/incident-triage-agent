@@ -3,6 +3,11 @@ name: tests
 # The offline suite (fakes; no key, no network) — the same 173 tests the README
 # claims. CI exists so that claim is third-party verifiable, not self-reported.
 #
+# The suite collects 178. The five that do not run here compare the stand-in rag
+# package with the real one, and no CI runner has a tech-docs-rag checkout beside
+# this repo, so they skip. Enforcing that surface is the job of the repository
+# that owns it: `tests/test_public_api.py` there fails when it moves.
+#
 # `pip install -e '.[dev]'` rather than `uv sync`: uv.lock is not committed, and
 # the offline core is stdlib-only, so there is nothing to pin.
 on:
